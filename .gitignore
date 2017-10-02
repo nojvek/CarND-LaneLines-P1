@@ -1,2 +1,4 @@
 .DS_Store
 *.pyc
+/test_videos_output
+/.ipynb_checkpoints
