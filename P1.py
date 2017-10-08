@@ -189,29 +189,62 @@ Try tuning the various parameters, especially the low and high Canny thresholds 
 '''
 
 # %%
-def process_image(image):
-    orig_img = image.copy()
+def filter_lanes(img):
+    hls_img = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    # While lanes
+    lower = np.uint8([0, 200,   0])
+    upper = np.uint8([255, 255, 255])
+    white_mask = cv2.inRange(hls_img, lower, upper)
+    # Yellow lanes
+    lower = np.uint8([10,   0, 100])
+    upper = np.uint8([40, 255, 255])
+    yellow_mask = cv2.inRange(hls_img, lower, upper)
+    # Both
+    mask = cv2.bitwise_or(white_mask, yellow_mask)
+    return cv2.bitwise_and(img, img, mask=mask)
 
-    # Grayscale and blur
-    img = grayscale(image)
-    img = gaussian_blur(img, 11)
+def skeletize(img):
+    element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    size = np.size(img)
+    skel = np.zeros(img.shape, np.uint8)
+
+    while(True):
+        eroded = cv2.erode(img, element)
+        temp = cv2.dilate(eroded, element)
+        temp = cv2.subtract(img, temp)
+        skel = cv2.bitwise_or(skel, temp)
+        img = eroded.copy()
+
+        zeros = size - cv2.countNonZero(img)
+        if zeros == size: break
+
+    return skel
+
+def process_image(img):
+    orig_img = img.copy()
+
+    # Find lanes
+    img = filter_lanes(img)
+
+    # Single channel
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     # Get ROI triangle for the lanes
-    h, w, _ = orig_img.shape # (height, width, channels)
-    top_pad = 0.58 # Height of ROI triangle
-    bottom_pad = 0.92 # Ignore windscreen glare in challenge
-    bottom_pad = 1
-    roi = np.array([[ [0, h * bottom_pad], [w * .5, h * top_pad], [w, h * bottom_pad] ]], dtype=np.int32)
+    h, w = img.shape # (height, width, channels)
+    # roi = np.array([[ [0, h], [w * .5, h * 0.55], [w, h] ]], dtype=np.int32)
+    roi = np.array([[ [0, h], [w * .5, h * 0.55], [w * 0.5, h] ]], dtype=np.int32)
     img = region_of_interest(img, roi)
 
-    # Binary threshold with val slightly higher than mean
-    mean_bump = 1.4
-    mean_val = (np.sum(img) / np.count_nonzero(img))
-    # print(mean_val * mean_bump)
-    _, img = cv2.threshold(img, mean_val * mean_bump, 255, cv2.THRESH_BINARY)
+    # Morphological skeletization of lanes
+    img = skeletize(img)
+
+    # Extract lanes
+    y, x = np.where(img == 1)
+    m, b = np.polyfit(y, x, 1)
+    print('fit', fit)
 
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    img = weighted_img(img, orig_img, 0.3, 0.7)
+    img = weighted_img(img, orig_img, 0.2, 1)
     # TODO Final lines drawn
 
     result = img
@@ -325,10 +358,6 @@ HTML("""
 
 # %%
 '''
-## Writeup and Submission
-
-If you're satisfied with your video outputs, it's time to make the report writeup in a pdf or markdown file. Once you have this Ipython notebook ready along with the writeup, it's time to submit for review! Here is a [link](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md) to the writeup template file.
-
 ## Optional Challenge
 
 Try your lane finding pipeline on the video below.  Does it still work?  Can you figure out a way to make it more robust?  If you're up for the challenge, modify your pipeline so it works with this video and submit it along with the rest of your project!
@@ -351,3 +380,56 @@ HTML("""
   <source src="{0}">
 </video>
 """.format(challenge_output))
+
+# %%
+'''
+## Writeup and Submission
+
+If you're satisfied with your video outputs, it's time to make the report writeup in a pdf or markdown file.
+Once you have this Ipython notebook ready along with the writeup, it's time to submit for review!
+Here is a [link](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md) to the writeup template file.
+
+## Reflections
+
+### ROI Triangle
+ - I tried using a triangle to filter out a region of interest where lanes are
+ - It was a perfect triangle but had to adjust height to be 0.58 rather than 0.5
+
+### Approach 1: Lane extraction - Binary tresholding
+ - Used manual values but didn't work on challenge
+ - Tried to use mean value but still noise
+ - Used a mean bump where I find the mean_val and increase by a factor
+ - That worked very well but challenge video still presented issues. Only one line was found
+
+```python
+# Binary threshold with val slightly higher than mean
+mean_bump = 1.4
+mean_val = (np.sum(img) / np.count_nonzero(img))
+print(mean_val * mean_bump)
+_, img = cv2.threshold(img, mean_val * mean_bump, 255, cv2.THRESH_BINARY)
+```
+
+### Approach 2: Lane extraction - Use hsl mask
+ - Had to do some manual tuning.
+ - This worked very well. Even on the challenge video
+ - Moved to helper `filter_lanes`
+
+### Approach 1: Skeletization - Canny
+ - Traced edges of blob, not the actual line. Wasn't too happy with output
+
+### Approach 2: Skeletization  - Use morpohological erosion and dilation
+ - Worked well but still had some holes.
+ - I do want to try Zhang-Suen in opencv_contrib
+
+### Approach 1: Line fitting - Hough transform
+ - Didn't quite work. Wasn't happy on how complicated it was to get it working
+ - Udacity videos weren't very helpful
+ - I have little idea how it works
+
+### Approach 2: Line fitting - np.polyfit
+ - Worked well
+ - Its simple, good old regression
+ - Could extend to detect curves in future
+ - I understand how it works
+'''
+
