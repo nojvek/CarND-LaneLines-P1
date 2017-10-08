@@ -190,11 +190,31 @@ Try tuning the various parameters, especially the low and high Canny thresholds 
 
 # %%
 def process_image(image):
-    # NOTE: The output you return should be a color image (3 channel) for processing video below
-    # TODO: put your pipeline here,
-    # you should return the final output (image where lines are drawn on lanes)
+    orig_img = image.copy()
 
-    result = image.copy()
+    # Grayscale and blur
+    img = grayscale(image)
+    img = gaussian_blur(img, 11)
+
+    # Get ROI triangle for the lanes
+    h, w, _ = orig_img.shape # (height, width, channels)
+    top_pad = 0.58 # Height of ROI triangle
+    bottom_pad = 0.92 # Ignore windscreen glare in challenge
+    bottom_pad = 1
+    roi = np.array([[ [0, h * bottom_pad], [w * .5, h * top_pad], [w, h * bottom_pad] ]], dtype=np.int32)
+    img = region_of_interest(img, roi)
+
+    # Binary threshold with val slightly higher than mean
+    mean_bump = 1.4
+    mean_val = (np.sum(img) / np.count_nonzero(img))
+    # print(mean_val * mean_bump)
+    _, img = cv2.threshold(img, mean_val * mean_bump, 255, cv2.THRESH_BINARY)
+
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    img = weighted_img(img, orig_img, 0.3, 0.7)
+    # TODO Final lines drawn
+
+    result = img
     return result
 
 # %%
@@ -209,8 +229,11 @@ Build your pipeline to work on the images in the directory "test_images"
 import os
 for image_file in os.listdir("test_images/"):
     image = mpimg.imread("test_images/%s" % image_file)
-    plt.imshow(image)
+    image = process_image(image)
+    plt.figure()
+    plt.imshow(image, cmap='gray')
     print(image_file)
+    #break
 
 # %%
 '''
