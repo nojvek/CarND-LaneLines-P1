@@ -234,18 +234,19 @@ def process_image(img):
     # roi = np.array([[ [0, h], [w * .5, h * 0.55], [w, h] ]], dtype=np.int32)
     roi = np.array([[ [0, h], [w * .5, h * 0.55], [w * 0.5, h] ]], dtype=np.int32)
     img = region_of_interest(img, roi)
+    lanes = img.copy()
 
     # Morphological skeletization of lanes
-    img = skeletize(img)
+    # img = skeletize(img)
 
     # Extract lanes
-    y, x = np.where(img == 1)
-    m, b = np.polyfit(y, x, 1)
-    print('fit', fit)
+    y, x = np.where(img > 0)
+    line_fn = np.poly1d(np.polyfit(x, y, 1))
+    lines = np.array([[[0, line_fn(0), w * 0.48, line_fn(w * 0.48)]]], dtype=np.int32)
 
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    img = weighted_img(img, orig_img, 0.2, 1)
-    # TODO Final lines drawn
+    lanes = cv2.cvtColor(lanes, cv2.COLOR_GRAY2RGB)
+    img = weighted_img(lanes, orig_img, 0.2, 1)
+    draw_lines(img, lines)
 
     result = img
     return result
@@ -428,7 +429,7 @@ _, img = cv2.threshold(img, mean_val * mean_bump, 255, cv2.THRESH_BINARY)
 
 ### Approach 2: Line fitting - np.polyfit
  - Worked well
- - Its simple, good old regression
+ - Its simple, good ol' regression
  - Could extend to detect curves in future
  - I understand how it works
 '''
