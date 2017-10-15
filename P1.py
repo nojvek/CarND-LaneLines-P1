@@ -231,21 +231,28 @@ def process_image(img):
 
     # Get ROI triangle for the lanes
     h, w = img.shape # (height, width, channels)
-    # roi = np.array([[ [0, h], [w * .5, h * 0.55], [w, h] ]], dtype=np.int32)
-    roi = np.array([[ [0, h], [w * .5, h * 0.55], [w * 0.5, h] ]], dtype=np.int32)
+    roi = np.array([[ [0, h], [w * .5, h * 0.58], [w, h] ]], dtype=np.int32)
     img = region_of_interest(img, roi)
     lanes = img.copy()
 
-    # Morphological skeletization of lanes
-    # img = skeletize(img)
+    # Extract lane functions
+    half_width = int(w * .5)
+    left_img = img[:,:half_width]
+    y, x = np.where(left_img > 0)
+    left_fn = np.poly1d(np.polyfit(y, x, 1))
 
-    # Extract lanes
-    y, x = np.where(img > 0)
-    line_fn = np.poly1d(np.polyfit(x, y, 1))
-    lines = np.array([[[0, line_fn(0), w * 0.48, line_fn(w * 0.48)]]], dtype=np.int32)
+    right_img = img[:,half_width:]
+    y, x = np.where(right_img > 0)
+    right_fn = np.poly1d(np.polyfit(y, x, 1))
+
+    # Lines to coordinates and draw them
+    lines = np.array([[
+        [left_fn(h), h ,left_fn(h * .65), h * .65],
+        [half_width + right_fn(h), h, half_width + right_fn(h * .65), h * .65],
+    ]], dtype=np.int32)
 
     lanes = cv2.cvtColor(lanes, cv2.COLOR_GRAY2RGB)
-    img = weighted_img(lanes, orig_img, 0.2, 1)
+    img = weighted_img(lanes, orig_img, 0.5, 1)
     draw_lines(img, lines)
 
     result = img
