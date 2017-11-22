@@ -44,7 +44,7 @@ The tools you have are color selection, region of interest selection, grayscalin
 '''
 
 # %%
-#importing some useful packages
+# importing some useful packages
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
@@ -57,10 +57,10 @@ import cv2
 '''
 
 # %%
-#reading in an image
+# reading in an image
 image = mpimg.imread('test_images/solidWhiteRight.jpg')
 
-#printing out some stats and plotting
+# printing out some stats and plotting
 print('This image is:', type(image), 'with dimensions:', image.shape)
 plt.imshow(image)  # if you wanted to show a single color channel image called 'gray', for example, call as plt.imshow(gray, cmap='gray')
 
@@ -113,20 +113,20 @@ def region_of_interest(img, vertices):
     Only keeps the region of the image defined by the polygon
     formed from `vertices`. The rest of the image is set to black.
     """
-    #defining a blank mask to start with
+    # defining a blank mask to start with
     mask = np.zeros_like(img)
 
-    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+    # defining a 3 channel or 1 channel color to fill the mask with depending on the input image
     if len(img.shape) > 2:
         channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
         ignore_mask_color = (255,) * channel_count
     else:
         ignore_mask_color = 255
 
-    #filling pixels inside the polygon defined by "vertices" with the fill color
+    # filling pixels inside the polygon defined by "vertices" with the fill color
     cv2.fillPoly(mask, vertices, ignore_mask_color)
 
-    #returning the image only where mask pixels are nonzero
+    # returning the image only where mask pixels are nonzero
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
@@ -149,7 +149,7 @@ def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
     this function with the weighted_img() function below
     """
     for line in lines:
-        for x1,y1,x2,y2 in line:
+        for x1, y1, x2, y2 in line:
             cv2.line(img, (x1, y1), (x2, y2), color, thickness)
 
 def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
@@ -192,11 +192,11 @@ Try tuning the various parameters, especially the low and high Canny thresholds 
 def filter_lanes(img):
     hls_img = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     # While lanes
-    lower = np.uint8([0, 200,   0])
+    lower = np.uint8([0, 200, 0])
     upper = np.uint8([255, 255, 255])
     white_mask = cv2.inRange(hls_img, lower, upper)
     # Yellow lanes
-    lower = np.uint8([10,   0, 100])
+    lower = np.uint8([10, 0, 100])
     upper = np.uint8([40, 255, 255])
     yellow_mask = cv2.inRange(hls_img, lower, upper)
     # Both
@@ -216,7 +216,8 @@ def skeletize(img):
         img = eroded.copy()
 
         zeros = size - cv2.countNonZero(img)
-        if zeros == size: break
+        if zeros == size:
+            break
 
     return skel
 
@@ -237,22 +238,22 @@ def process_image(img):
 
     # Extract lane functions
     half_width = int(w * .5)
-    left_img = img[:,:half_width]
+    left_img = img[:, :half_width]
     y, x = np.where(left_img > 0)
     left_fn = np.poly1d(np.polyfit(y, x, 1))
 
-    right_img = img[:,half_width:]
+    right_img = img[:, half_width:]
     y, x = np.where(right_img > 0)
     right_fn = np.poly1d(np.polyfit(y, x, 1))
 
     # Lines to coordinates and draw them
     lines = np.array([[
-        [left_fn(h), h ,left_fn(h * .65), h * .65],
+        [left_fn(h), h, left_fn(h * .65), h * .65],
         [half_width + right_fn(h), h, half_width + right_fn(h * .65), h * .65],
     ]], dtype=np.int32)
 
     lanes = cv2.cvtColor(lanes, cv2.COLOR_GRAY2RGB)
-    img = weighted_img(lanes, orig_img, 0.5, 1)
+    img = weighted_img(lanes, orig_img, 1, 0) # 0.5 to show lanes
     draw_lines(img, lines)
 
     result = img
@@ -274,7 +275,6 @@ for image_file in os.listdir("test_images/"):
     plt.figure()
     plt.imshow(image, cmap='gray')
     print(image_file)
-    #break
 
 # %%
 '''
@@ -311,13 +311,13 @@ Let's try the one with the solid white lane on the right first ...
 
 # %%
 white_output = 'test_videos_output/solidWhiteRight.mp4'
-## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
-## To do so add .subclip(start_second,end_second) to the end of the line below
-## Where start_second and end_second are integer values representing the start and end of the subclip
-## You may also uncomment the following line for a subclip of the first 5 seconds
-##clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4").subclip(0,5)
+# To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
+# To do so add .subclip(start_second,end_second) to the end of the line below
+# Where start_second and end_second are integer values representing the start and end of the subclip
+# You may also uncomment the following line for a subclip of the first 5 seconds
+# clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4").subclip(0,5)
 clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4")
-white_clip = clip1.fl_image(process_image) #NOTE: this function expects color images!!
+white_clip = clip1.fl_image(process_image) # NOTE: this function expects color images!!
 %time white_clip.write_videofile(white_output, audio=False)
 
 # %%
@@ -348,11 +348,11 @@ Now for the one with the solid yellow lane on the left. This one's more tricky!
 
 # %%
 yellow_output = 'test_videos_output/solidYellowLeft.mp4'
-## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
-## To do so add .subclip(start_second,end_second) to the end of the line below
-## Where start_second and end_second are integer values representing the start and end of the subclip
-## You may also uncomment the following line for a subclip of the first 5 seconds
-##clip2 = VideoFileClip('test_videos/solidYellowLeft.mp4').subclip(0,5)
+# To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
+# To do so add .subclip(start_second,end_second) to the end of the line below
+# Where start_second and end_second are integer values representing the start and end of the subclip
+# You may also uncomment the following line for a subclip of the first 5 seconds
+# clip2 = VideoFileClip('test_videos/solidYellowLeft.mp4').subclip(0,5)
 clip2 = VideoFileClip('test_videos/solidYellowLeft.mp4')
 yellow_clip = clip2.fl_image(process_image)
 %time yellow_clip.write_videofile(yellow_output, audio=False)
@@ -373,11 +373,11 @@ Try your lane finding pipeline on the video below.  Does it still work?  Can you
 
 # %%
 challenge_output = 'test_videos_output/challenge.mp4'
-## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
-## To do so add .subclip(start_second,end_second) to the end of the line below
-## Where start_second and end_second are integer values representing the start and end of the subclip
-## You may also uncomment the following line for a subclip of the first 5 seconds
-##clip3 = VideoFileClip('test_videos/challenge.mp4').subclip(0,5)
+# To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
+# To do so add .subclip(start_second,end_second) to the end of the line below
+# Where start_second and end_second are integer values representing the start and end of the subclip
+# You may also uncomment the following line for a subclip of the first 5 seconds
+# clip3 = VideoFileClip('test_videos/challenge.mp4').subclip(0,5)
 clip3 = VideoFileClip('test_videos/challenge.mp4')
 challenge_clip = clip3.fl_image(process_image)
 %time challenge_clip.write_videofile(challenge_output, audio=False)
@@ -440,4 +440,3 @@ _, img = cv2.threshold(img, mean_val * mean_bump, 255, cv2.THRESH_BINARY)
  - Could extend to detect curves in future
  - I understand how it works
 '''
-
